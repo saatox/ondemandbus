@@ -1,6 +1,5 @@
-# Project Title
+# An Online Algorithm For On-Demand Bus and Patrol Point Scheduling
 
-An Online Algorithm For On-Demand Bus and Patrol Point Scheduling
 
 ## Description
 
