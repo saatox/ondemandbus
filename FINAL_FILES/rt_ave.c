@@ -28,6 +28,7 @@ int bus_stops=0;
 double total_rt=0;
 double worst_ad=0;
 double initial_worstad=0;
+int count_error=0;
 
 double calc_cost(int new_route[]){
     double total=0;
@@ -200,6 +201,11 @@ void time_greedy(int first, int rq_count){
     initial_worstad=worst_ad;
     count_patrols(greedy_route, rq_count);
 
+    if(initial_cost<-0.000001||initial_rt<-0.000001||initial_worst<-0.000001||initial_worstad<-0.000001){
+        printf("%f %f %f %f\n", initial_cost, initial_rt, initial_worst, initial_worstad);
+        exit(0);
+    }
+
 }
 
 void my_init() {
@@ -321,11 +327,12 @@ void simulated_annealing(){
 
     }
 
-    if(total_rt>initial_worst+20){
+    if(total_rt>initial_worst+20&&count_error<50){
         printf("REDO, worst=%f\n", worst_time);
+        count_error+=1;
         simulated_annealing();
     }
-    else if(total_rt>initial_worst){
+    else if(total_rt>initial_worst||count_error==50){
         for (int i = 0; i < passenger_count; i++) {     
             route[i] = greedy_route[i];   
             printf("%d ", input[route[i]]);  
@@ -691,10 +698,11 @@ int main(void){
     int file_name=1;
     char temp[100];
 
-    for (file_name=1; file_name<=10; file_name++){
+    for (file_name=1; file_name<=50; file_name++){
         FILE *fptr;
+        count_error=0;
         
-        char path[100]="/Users/satokamimura/Desktop/seniorproject/sanda/north/rt/test";
+        char path[100]="/Users/satokamimura/Desktop/INCOS_tests/two/tests/test";
         sprintf(temp, "%d.txt", file_name);
         strcat(path, temp);
         printf("%s", path);
@@ -784,6 +792,18 @@ int main(void){
         printf("aptdone\n");
 
         calc_time(route);
+
+        while(worst_time<-0.000001||calc_time(route)<-0.000001||total_rt<-0.000001||worst_ad<-0.000001){
+            time_greedy(first, passenger_count);
+            simulated_annealing();
+            time_check();
+            printf("tcdone\n");
+            fix_route();
+            printf("frdone\n");
+            add_patrol_time();
+            printf("aptdone\n");
+            calc_time(route);
+        }
         printf("worst=%f\n", worst_time);
         printf("cost=%f\n", calc_time(route));
         printf("rt=%f\n", total_rt);
