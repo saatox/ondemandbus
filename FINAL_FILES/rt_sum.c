@@ -28,6 +28,7 @@ int bus_stops=0;
 double total_rt=0;
 double worst_ad=0;
 double initial_worstad=0;
+int count_error=0;
 
 double calc_cost(int new_route[]){
     double total=0;
@@ -198,22 +199,33 @@ void time_greedy(int first, int rq_count){
                 current=j;
             }
         }
+        
     }
 
-    for (int i=0; i<rq_count; i++){
+    for (int i=first; i<rq_count; i++){
         greedy_route[i]=route[i];
     }
 
 
+    // for (int i=0; i<passenger_count; i++){
+    //     printf("%d --> %f\n", input[route[i]], rqtime[route[i]]);
     // }
-    printf("\n");
-    best_time_comp();
-    initial_cost=calc_time(greedy_route);
-    initial_worst=worst_time;
+    // // }
+    // printf("\n");
+    // printf("cost= %f\n", calc_time(route));
+    initial_cost=calc_time(route);
     initial_rt=total_rt;
+    initial_worst=worst_time;
     initial_worstad=worst_ad;
     
     count_patrols(greedy_route, rq_count);
+
+    if(initial_cost<-0.000001||initial_rt<-0.000001||initial_worst<-0.000001||initial_worstad<-0.000001){
+        printf("%f %f %f %f\n", initial_cost, initial_rt, initial_worst, initial_worstad);
+        exit(0);
+    }
+
+    printf("LOOKHERE %f", initial_rt);
 
 }
 
@@ -336,11 +348,12 @@ void simulated_annealing(){
 
     }
 
-    if(total_rt>initial_worst+20){
+    if(worst_time>initial_worst+20&&count_error<50){
         printf("REDO, worst=%f\n", worst_time);
+        count_error+=1;
         simulated_annealing();
     }
-    else if(total_rt>initial_worst){
+    else if(worst_time>initial_worst||count_error==50){
         for (int i = 0; i < passenger_count; i++) {     
             route[i] = greedy_route[i];   
             printf("%d ", input[route[i]]);  
@@ -686,128 +699,149 @@ int main(void){
     int i=0;
     my_init();
     int first=0;
+    int file_name=1;
+    char temp[100];
 
-    FILE *fptr;
-    if ((fptr = fopen("/Users/satokamimura/Desktop/seniorproject/sanda/north/rt/test10.txt","r")) == NULL){
-        printf("Error! opening file");
+    for (file_name=1; file_name<=50; file_name++){
+        FILE *fptr;
+        count_error=0;
+        char path[100]="/Users/satokamimura/Desktop/INCOS_tests/two/tests/test";
+        sprintf(temp, "%d.txt", file_name);
+        strcat(path, temp);
+        printf("%s", path);
+        if ((fptr = fopen(path,"r")) == NULL){
+            printf("Error! opening file");
 
-        // Program exits if the file pointer returns NULL.
-        exit(1);
-    }
-
-    fscanf(fptr, "%d ", &bus_stops);
-    int new[bus_stops];
-   
-
-    for(i=0; i<bus_stops; i++){
-        for(int j=0; j<bus_stops; j++){
-            fscanf(fptr," %lf ", &array[i][j]);
+            // Program exits if the file pointer returns NULL.
+            exit(1);
         }
-        initial_diff[i]=DISTANCE;
-    }
 
-    // for(i=0; i<bus_stops; i++){
-    //     printf("\t");
-    //     for(int j=0; j<bus_stops; j++){
-    //         printf("%f ", array[i][j]);
-    //     }
-    //     printf("\n");
-    // }
+        fscanf(fptr, "%d ", &bus_stops);
+        int new[bus_stops];
+    
 
-    for(i=0; i<bus_stops; i++){
-        for(int j=0; j<bus_stops; j++){
-            for(int m=0; m<bus_stops; m++){
-                fscanf(fptr," %d ", &patrol[i][j][m]);
-                if(patrol[i][j][m]==1000){
-                    break;
+        for(i=0; i<bus_stops; i++){
+            for(int j=0; j<bus_stops; j++){
+                fscanf(fptr," %lf ", &array[i][j]);
+            }
+            initial_diff[i]=DISTANCE;
+        }
+
+        // for(i=0; i<bus_stops; i++){
+        //     printf("\t");
+        //     for(int j=0; j<bus_stops; j++){
+        //         printf("%f ", array[i][j]);
+        //     }
+        //     printf("\n");
+        // }
+
+        for(i=0; i<bus_stops; i++){
+            for(int j=0; j<bus_stops; j++){
+                for(int m=0; m<bus_stops; m++){
+                    fscanf(fptr," %d ", &patrol[i][j][m]);
+                    if(patrol[i][j][m]==1000){
+                        break;
+                    }
                 }
             }
+            
         }
+
+
         
-    }
+    clock_t t;
+        t = clock();
 
+        // find_farthest();
+
+        fscanf(fptr, "%d ", &passenger_count);
+        printf("%d\n", passenger_count);
+
+        passenger_count*=2;
+        for(int j=0; j<passenger_count; j+=2){
+            fscanf(fptr,"%d %d %lf ", &input[j], &input[j+1], &rqtime[j+1]);
+            if(rqtime[j+1]<(array[input[j]][input[j+1]]/MPM)){
+                rqtime[j]=0;
+                rqtime[j+1]=array[input[j]][input[j+1]]/MPM;
+            }
+            else{
+                rqtime[j]=rqtime[j+1]-(array[input[j]][input[j+1]]/MPM);
+            }
+        }
+
+        
+        // printf("input ");
+        for(int j=0; j<passenger_count; j++){
+            // printf("%d ", input[j]);
+            if(rqtime[j]<rqtime[first]){
+                first=j;
+            }
+        }
+
+        printf("\n");
+
+        printf("THIS%f\n", array[21][17]/MPM);
+
+        time_greedy(first, passenger_count);
+
+        simulated_annealing();
+
+        time_check();
+        printf("tcdone\n");
+
+        fix_route();
+
+        printf("frdone\n");
+
+        add_patrol_time();
+        printf("aptdone\n");
+
+        calc_time(route);
+
+        while(worst_time<-0.000001||calc_time(route)<-0.000001||total_rt<-0.000001||worst_ad<-0.000001){
+            time_greedy(first, passenger_count);
+            simulated_annealing();
+            time_check();
+            printf("tcdone\n");
+            fix_route();
+            printf("frdone\n");
+            add_patrol_time();
+            printf("aptdone\n");
+            calc_time(route);
+        }
+
+        printf("worst=%f\n", worst_time);
+        printf("cost=%f\n", calc_time(route));
+        printf("rt=%f\n", total_rt);
+        printf("worstad=%f\n", worst_ad);
+
+        printf("initial worst=%f\n", initial_worst);
+        printf("initial cost=%f\n", initial_cost);
+        printf("initial rt=%f\n", initial_rt);
+        printf("initial worstad=%f\n", initial_worstad);
+
+        // printf("%d done\n\n\n", i/6);
+
+
+
+        best_time_comp();
+
+
+
+
+        t = clock() - t;
+
+        double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
+        FILE *fp;
+        fp = fopen("rt_sum.txt", "a");
+        fprintf(fp, "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", worst_time, calc_time(route), total_rt, worst_ad, initial_worst, initial_cost, initial_rt, initial_worstad);
 
     
-   clock_t t;
-    t = clock();
-
-    // find_farthest();
-
-    fscanf(fptr, "%d ", &passenger_count);
-    printf("%d\n", passenger_count);
-
-    passenger_count*=2;
-    for(int j=0; j<passenger_count; j+=2){
-        fscanf(fptr,"%d %d %lf ", &input[j], &input[j+1], &rqtime[j+1]);
-        if(rqtime[j+1]<(array[input[j]][input[j+1]]/MPM)){
-            rqtime[j]=0;
-            rqtime[j+1]=array[input[j]][input[j+1]]/MPM;
-        }
-        else{
-            rqtime[j]=rqtime[j+1]-(array[input[j]][input[j+1]]/MPM);
-        }
-    }
-
+        fclose(fp); //Don't forget to close the file when finished
     
-    // printf("input ");
-    for(int j=0; j<passenger_count; j++){
-        // printf("%d ", input[j]);
-        if(rqtime[j]<rqtime[first]){
-            first=j;
-        }
+        printf("runtime= %f \n", time_taken);
+
     }
-
-    printf("\n");
-
-    printf("THIS%f\n", array[21][17]/MPM);
-
-    time_greedy(first, passenger_count);
-
-    simulated_annealing();
-
-    time_check();
-    printf("tcdone\n");
-
-    fix_route();
-
-    printf("frdone\n");
-
-    add_patrol_time();
-    printf("aptdone\n");
-
-    calc_time(route);
-    printf("worst=%f\n", worst_time);
-    printf("cost=%f\n", calc_time(route));
-    printf("rt=%f\n", total_rt);
-    printf("worstad=%f\n", worst_ad);
-
-    printf("initial worst=%f\n", initial_worst);
-    printf("initial cost=%f\n", initial_cost);
-    printf("initial rt=%f\n", initial_rt);
-    printf("initial worstad=%f\n", initial_worstad);
-
-    // printf("%d done\n\n\n", i/6);
-
-
-
-    best_time_comp();
-
-
-
-
-    t = clock() - t;
-
-    double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
-    FILE *fp;
-    fp = fopen("rt_sum.txt", "a");
-    fprintf(fp, "%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n", worst_time, calc_time(route), total_rt, worst_ad, initial_worst, initial_cost, initial_rt, initial_worstad);
-
-   
-    fclose(fp); //Don't forget to close the file when finished
- 
-    printf("runtime= %f \n", time_taken);
-
-
     return 0;
 
 }
